@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from kivy.app import App
 from kivy.uix.screenmanager import ScreenManager
+from kivy.core.window import Window
 
 from database.database import Database
 from screens.home import HomeScreen
@@ -13,6 +14,10 @@ from screens.tafsir import TafsirScreen
 from screens.statistics import StatisticsScreen
 from screens.profile import ProfileScreen
 from screens.settings import SettingsScreen
+from screens.bookmarks_notes import QuranBookmarksNotesScreen
+
+
+Window.size = (540, 960)
 
 
 class MushafiApp(App):
@@ -31,6 +36,7 @@ class MushafiApp(App):
         self.statistics_screen = StatisticsScreen(name="statistics", app=self)
         self.profile_screen = ProfileScreen(name="profile", app=self)
         self.settings_screen = SettingsScreen(name="settings", app=self)
+        self.bookmarks_notes_screen = QuranBookmarksNotesScreen(name="bookmarks_notes", app=self)
 
         for screen in [
             self.home_screen,
@@ -42,6 +48,7 @@ class MushafiApp(App):
             self.statistics_screen,
             self.profile_screen,
             self.settings_screen,
+            self.bookmarks_notes_screen,
         ]:
             self.screen_manager.add_widget(screen)
 

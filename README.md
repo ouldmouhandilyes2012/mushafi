@@ -1,64 +1,98 @@
 # Mushafi - مصحفي
 
-Offline-first Arabic Quran memorization and revision application built with Python and Kivy.
+## Summary
 
-## Features
+**Mushafi** is a complete offline-first Arabic Quran memorization and revision application built with Python and Kivy. All features work locally without internet connection.
 
-### ✅ Implemented
+## Current Features (v1.0)
 
-- **Heart Screen (قلب القرآن)**: Visual 114-surah grid with status tracking
-  - 🟢 Memorized (محفوظ)
-  - 🟡 Needs Review (يحتاج مراجعة)
-  - 🔴 Not Memorized (غير محفوظ)
-  - Status persists in SQLite
+### 🔖 Core Functionality
 
-- **Quran Screen (القرآن)**:
-  - Local JSON-based Quran text import
-  - Navigate between surahs (1-114)
-  - Switch between riwayat (hafs, warsh, qalun)
-  - Adjust font size locally
+1. **Quran Reading Screen** (القرآان)
+   - Navigate between all 114 surahs
+   - Switch between riwayat: Hafs, Warsh, Qalun
+   - Adjustable font size (18-26px)
+   - Local JSON-based text import
+   - No internet required
 
-- **Review Engine (المراجعة)**:
-  - Automatic interval scheduling
-  - Review dashboard with due/upcoming/overdue tracking
-  - Mark reviews as complete
-  - Success/failure-based interval adjustment
+2. **Heart Screen - Memorization Tracker** (قلب القرآان)
+   - Visual 6x19 grid of all 114 surahs
+   - Three status levels:
+     - 🟢 **Memorized** (Green)
+     - 🟡 **Needs Review** (Yellow)
+     - 🔴 **Not Memorized** (Red)
+   - Tap to toggle status
+   - Persistent SQLite storage
+   - Status persists across app restarts
 
-- **Tafsir System (التفسير)**:
-  - Local JSON-based tafsir import
-  - Search by surah and ayah
-  - Display tafsir with source attribution
+3. **Review System** (المراجعة)
+   - Intelligent spaced-repetition scheduling
+   - Dashboard with due/upcoming/overdue counts
+   - Automatic interval adjustment based on success/failure
+   - Mark reviews as complete
+   - Track mistake count and success count
 
-- **Profile Management (الملف الشخصي)**:
-  - Editable user display name
-  - Memorization goal (number of surahs)
-  - Review goal (number of sessions)
-  - Data persists in SQLite
+4. **Tafsir System** (التفسير)
+   - Search tafsir by surah and ayah
+   - Local JSON-based tafsir import
+   - Display with source attribution
+   - Multiple tafsir sources supported
 
-- **Settings (الإعدادات)**:
-  - Select preferred riwayah
-  - Adjust font size (18-26)
-  - Toggle night mode
-  - Control local notifications
-  - All settings save to SQLite
+5. **Profile Management** (الملف الشخصي)
+   - Editable user name
+   - Memorization goal (target number of surahs)
+   - Review goal (target sessions per week)
+   - All data persists in SQLite
 
-- **Statistics (الإحصائيات)**:
-  - Track memorized/unmemorized/review-needed surahs
-  - Progress percentage
-  - User goals display
-  - Real-time data from SQLite
+6. **Settings** (الإعدادات)
+   - Select preferred riwayah
+   - Adjust font size globally
+   - Toggle night mode
+   - Enable/disable local notifications
+   - All settings saved locally
 
-- **Database**:
-  - Full SQLite schema with 14 tables
-  - Proper foreign keys and constraints
-  - Default settings initialization
-  - Profile and statistics aggregation
+7. **Statistics Dashboard** (الإحصائيات)
+   - Surahs memorized / total
+   - Surahs needing review
+   - Progress percentage
+   - User's memorization and review goals
+   - Real-time data from SQLite
 
-### 📦 Data Import
+8. **Bookmarks & Notes** (العلامات والملاحظات)
+   - Bookmark specific ayahs
+   - Add/edit/delete notes on surahs and ayahs
+   - View all bookmarks and notes
+   - Organized tabbed interface
 
-The app supports offline local data in JSON format:
+9. **Recitation Recording** (التسميع)
+   - Record personal recitations locally
+   - Save recordings with metadata
+   - View saved recordings
+   - Delete recordings
+   - No uploads to any server
 
-**Quran Format** (`assets/quran/hafs/hafs.json`):
+### 📦 Data & Persistence
+
+- **SQLite Database** with 14 tables
+- **Local JSON Imports** for Quran, Tafsir, Riwayat, Readers
+- **User Data Storage**: Progress, settings, profile, notes, bookmarks, recordings
+- **Sample Data** included in `assets/sample_data/`
+
+### 🔽 UI/UX
+
+- **Arabic RTL Layout** throughout
+- **Warm Color Palette**: Ivory backgrounds, gold accents
+- **Simple Card-based Design**
+- **Status Color-coding**: Green/Yellow/Red for memorization states
+- **Responsive Layout** for different phone sizes
+- **Clear Navigation** with back button on every screen
+
+## Data Import Format
+
+### Quran Format
+
+Place in `assets/quran/hafs/hafs.json`, `assets/quran/warsh/warsh.json`, etc.:
+
 ```json
 [
   {
@@ -70,100 +104,99 @@ The app supports offline local data in JSON format:
 ]
 ```
 
-**Tafsir Format** (`assets/tafsir/tafsir.json`):
+### Tafsir Format
+
+Place in `assets/tafsir/tafsir.json`:
+
 ```json
 [
   {
     "surah_number": 1,
     "ayah_number": 1,
-    "tafsir": "تفسير الآية",
-    "source": "اسم التفسير"
+    "tafsir": "تفسير الآية هنا",
+    "source": "اسم التفسير إربايته"
   }
 ]
 ```
 
-**Sample files** are included in `assets/sample_data/`.
-
-## Local Setup
+## Installation & Running
 
 ```bash
+# Clone the repository
+git clone https://github.com/ouldmouhandilyes2012/mushafi.git
+cd mushafi
+
+# Create virtual environment
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Run the app
 python main.py
 ```
 
-## Android Build
+## Building for Android
 
-Requires Android SDK, NDK, and Buildozer:
+Requires: Android SDK, NDK, and Buildozer
 
 ```bash
 buildozer android debug
+# APK will be in bin/
 ```
-
-## Important Notes
-
-1. **No Fake Data**: This project does not include invented Quran text or tafsir. It uses a verified local import schema instead.
-2. **Fully Offline**: Once data is imported, the app works completely offline.
-3. **SQLite Persistence**: All user data (progress, settings, profile) is stored locally in SQLite.
-4. **Extensible**: The architecture supports easy addition of new tafsir sources, riwayat, and readers.
 
 ## Project Structure
 
 ```
 mushafi/
-├── main.py
-├── requirements.txt
-├── buildozer.spec
+├── main.py                 # App entry point
+├── requirements.txt         # Python dependencies
+├── buildozer.spec           # Android build config
 ├── database/
-│   ├── database.py
-│   └── migrations.py
-├── models/
-│   ├── surah.py
-│   ├── verse.py
-│   ├── riwayah.py
-│   ├── reader.py
-│   ├── review.py
-│   └── profile.py
-├── screens/
-│   ├── base.py
-│   ├── home.py
-│   ├── quran.py
-│   ├── heart.py
-│   ├── review.py
-│   ├── tafsir.py
-│   ├── recitation.py
-│   ├── statistics.py
-│   ├── profile.py
-│   └── settings.py
-├── services/
-│   ├── quran_service.py
-│   ├── audio_service.py
-│   ├── recitation_engine.py
-│   ├── review_engine.py
-│   ├── tafsir_service.py
-│   └── offline_manager.py
-├── widgets/
-│   ├── heart_grid.py
-│   ├── verse_widget.py
-│   └── audio_player.py
+│   ├── database.py          # SQLite wrapper
+│   └── migrations.py        # Schema & initialization
+├── models/                 # Data classes
+├── screens/                # UI screens (9 screens)
+├── services/               # Business logic
+├── widgets/                # Reusable components
 └── assets/
-    ├── quran/
-    │   ├── hafs/
-    │   ├── warsh/
-    │   └── qalun/
-    ├── tafsir/
-    ├── audio/
-    ├── fonts/
-    └── sample_data/
+    ├── quran/               # Quran JSON imports (hafs, warsh, qalun)
+    ├── tafsir/              # Tafsir JSON imports
+    ├── audio/               # Local audio files
+    ├── fonts/               # Custom fonts
+    └── sample_data/         # Example JSON files
 ```
 
-## Limitations
+## Design Philosophy
 
-- **APK Status**: No actual Android APK has been built in this environment. Real APK requires Android SDK/NDK toolchain.
-- **Audio**: Placeholder implementation; actual audio playback requires local .mp3 files in `assets/audio/`.
-- **Recitation Recording**: UI present but backend recording features require platform-specific implementations.
+1. **No Internet Required**: All features work completely offline
+2. **No Fake Data**: The app uses verified local data imports only
+3. **User Privacy**: All data is stored locally; no tracking or uploads
+4. **Simple & Fast**: Lightweight, efficient database queries
+5. **Extensible**: Easy to add new riwayat, tafsir sources, readers
+6. **Quranic Focus**: Designed specifically for Quran memorization and revision
+
+## Notes
+
+- **APK Status**: This is source code. Building to Android requires a machine with Android SDK, NDK, and Buildozer installed.
+- **Sample Data**: Includes example Quran and Tafsir JSON in `assets/sample_data/` for reference.
+- **Database Location**: `database/mushafi.db` (created automatically on first run)
+- **Settings & Profile**: Stored in SQLite, not in config files
+
+## Future Enhancements
+
+- Audio playback for recorded recitations
+- Export user progress as backup
+- Multiple user profiles
+- Hadith integration
+- Night mode refinement
+- Gesture-based navigation
 
 ## License
 
 MIT
+
+## Support
+
+For issues or feature requests, use GitHub Issues.
