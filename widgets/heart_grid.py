@@ -1,36 +1,199 @@
-from __future__ import annotations
-
-from kivy.uix.button import Button
-from kivy.uix.gridlayout import GridLayout
+import sqlite3
 
 
-class HeartCell(Button):
-    def __init__(self, surah_number: int, status: str = "unmemorized", **kwargs):
-        super().__init__(**kwargs)
-        self.surah_number = surah_number
-        self.status = status
-        self.text = str(surah_number)
-        self.font_size = 18
-        self.background_color = self._status_color(status)
-        self.color = (0.2, 0.2, 0.2, 1)
+SCHEMA_SQL = [
+    """
+    CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS surahs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number INTEGER UNIQUE NOT NULL,
+        name_ar TEXT NOT NULL,
+        name_en TEXT,
+        revelation_place TEXT,
+        verses_count INTEGER DEFAULT 0
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS verses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number INTEGER NOT NULL,
+        ayah_number INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        text_english TEXT,
+        translation TEXT,
+        UNIQUE(surah_number, ayah_number)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS riwayat (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        display_name TEXT NOT NULL,
+        file_path TEXT,
+        is_active INTEGER DEFAULT 0
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS readers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reader_id TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        riwayah TEXT,
+        audio_path TEXT,
+        is_active INTEGER DEFAULT 0
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS surah_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number INTEGER NOT NULL,
+        status TEXT DEFAULT 'unmemorized',
+        memorized INTEGER DEFAULT 0,
+        needs_review INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(surah_number)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS verse_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number INTEGER NOT NULL,
+        ayah_number INTEGER NOT NULL,
+        status TEXT DEFAULT 'unmemorized',
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(surah_number, ayah_number)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah INTEGER NOT NULL,
+        ayah_start INTEGER NOT NULL,
+        ayah_end INTEGER NOT NULL,
+        due_date TEXT,
+        interval_days INTEGER DEFAULT 1,
+        mistakes INTEGER DEFAULT 0,
+        success_count INTEGER DEFAULT 0,
+        last_review TEXT,
+        status TEXT DEFAULT 'pending'
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS bookmarks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number INTEGER NOT NULL,
+        ayah_number INTEGER NOT NULL,
+        label TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        target_type TEXT NOT NULL,
+        surah_number INTEGER,
+        ayah_number INTEGER,
+        note TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS recitations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number INTEGER NOT NULL,
+        ayah_start INTEGER NOT NULL,
+        ayah_end INTEGER NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS recordings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        duration_seconds REAL DEFAULT 0,
+        is_personal INTEGER DEFAULT 1
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT UNIQUE NOT NULL,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS statistics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT UNIQUE NOT NULL,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS profile (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        display_name TEXT,
+        favorite_riwayah TEXT,
+        favorite_reader TEXT,
+        memorization_goal INTEGER DEFAULT 0,
+        review_goal INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+]
 
-    def _status_color(self, status: str):
-        if status == "memorized":
-            return (0.35, 0.75, 0.38, 1)
-        if status == "review":
-            return (0.95, 0.7, 0.25, 1)
-        return (0.85, 0.35, 0.35, 1)
 
+def run_migrations(connection: sqlite3.Connection):
+    for statement in SCHEMA_SQL:
+        connection.execute(statement)
 
-class HeartGridWidget(GridLayout):
-    def __init__(self, statuses=None, **kwargs):
-        super().__init__(**kwargs)
-        self.cols = 6
-        self.spacing = 8
-        self.padding = 10
-        self.size_hint_y = None
-        self.bind(minimum_height=self.setter("height"))
-        statuses = statuses or {}
-        for surah in range(1, 115):
-            cell = HeartCell(surah, statuses.get(surah, "unmemorized"))
-            self.add_widget(cell)
+    defaults = {
+        "font_size": "22",
+        "night_mode": "0",
+        "local_notifications": "1",
+        "selected_riwayah": "hafs",
+        "selected_reader": "",
+    }
+    for key, value in defaults.items():
+        connection.execute(
+            "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",
+            (key, value),
+        )
+
+    riwayat_seed = [
+        ("hafs", "حفص", "assets/quran/hafs", 1),
+        ("warsh", "ورش", "assets/quran/warsh", 0),
+        ("qalun", "قالون", "assets/quran/qalun", 0),
+    ]
+    for name, display_name, file_path, is_active in riwayat_seed:
+        connection.execute(
+            "INSERT OR IGNORE INTO riwayat(name, display_name, file_path, is_active) VALUES (?, ?, ?, ?)",
+            (name, display_name, file_path, is_active),
+        )
+
+    readers_seed = [
+        ("reader_local_01", "قارئ محلي 1", "hafs", "assets/audio", 1),
+    ]
+    for reader_id, name, riwayah, audio_path, is_active in readers_seed:
+        connection.execute(
+            "INSERT OR IGNORE INTO readers(reader_id, name, riwayah, audio_path, is_active) VALUES (?, ?, ?, ?, ?)",
+            (reader_id, name, riwayah, audio_path, is_active),
+        )
+
+    if connection.execute("SELECT COUNT(*) FROM profile").fetchone()[0] == 0:
+        connection.execute(
+            "INSERT INTO profile(display_name, favorite_riwayah, favorite_reader, memorization_goal, review_goal) VALUES (?, ?, ?, ?, ?)",
+            ("المستخدم", "hafs", "reader_local_01", 30, 10),
+        )
+
+    connection.commit()

@@ -1,179 +1,116 @@
 import sqlite3
+from pathlib import Path
+
+from database.migrations import run_migrations
 
 
-SCHEMA_SQL = [
-    """
-    CREATE TABLE IF NOT EXISTS app_meta (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS surahs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        surah_number INTEGER UNIQUE NOT NULL,
-        name_ar TEXT NOT NULL,
-        name_en TEXT,
-        revelation_place TEXT,
-        verses_count INTEGER DEFAULT 0
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS verses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        surah_number INTEGER NOT NULL,
-        ayah_number INTEGER NOT NULL,
-        text TEXT NOT NULL,
-        text_english TEXT,
-        translation TEXT,
-        UNIQUE(surah_number, ayah_number)
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS riwayat (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL,
-        display_name TEXT NOT NULL,
-        file_path TEXT,
-        is_active INTEGER DEFAULT 0
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS readers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        reader_id TEXT UNIQUE NOT NULL,
-        name TEXT NOT NULL,
-        riwayah TEXT,
-        audio_path TEXT,
-        is_active INTEGER DEFAULT 0
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS surah_progress (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        surah_number INTEGER NOT NULL,
-        status TEXT DEFAULT 'unmemorized',
-        memorized INTEGER DEFAULT 0,
-        needs_review INTEGER DEFAULT 0,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(surah_number)
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS verse_progress (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        surah_number INTEGER NOT NULL,
-        ayah_number INTEGER NOT NULL,
-        status TEXT DEFAULT 'unmemorized',
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(surah_number, ayah_number)
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        surah INTEGER NOT NULL,
-        ayah_start INTEGER NOT NULL,
-        ayah_end INTEGER NOT NULL,
-        due_date TEXT,
-        interval_days INTEGER DEFAULT 1,
-        mistakes INTEGER DEFAULT 0,
-        success_count INTEGER DEFAULT 0,
-        last_review TEXT,
-        status TEXT DEFAULT 'pending'
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS bookmarks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        surah_number INTEGER NOT NULL,
-        ayah_number INTEGER NOT NULL,
-        label TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        target_type TEXT NOT NULL,
-        surah_number INTEGER,
-        ayah_number INTEGER,
-        note TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS recitations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        surah_number INTEGER NOT NULL,
-        ayah_start INTEGER NOT NULL,
-        ayah_end INTEGER NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        notes TEXT
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS recordings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        duration_seconds REAL DEFAULT 0,
-        is_personal INTEGER DEFAULT 1
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS settings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        key TEXT UNIQUE NOT NULL,
-        value TEXT NOT NULL,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS statistics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        key TEXT UNIQUE NOT NULL,
-        value TEXT NOT NULL,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS profile (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        display_name TEXT,
-        favorite_riwayah TEXT,
-        favorite_reader TEXT,
-        memorization_goal INTEGER DEFAULT 0,
-        review_goal INTEGER DEFAULT 0,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    """
-]
+DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "mushafi.db"
 
 
-def run_migrations(connection: sqlite3.Connection):
-    for statement in SCHEMA_SQL:
-        connection.execute(statement)
+class Database:
+    def __init__(self, db_path: str | Path | None = None):
+        self.db_path = Path(db_path) if db_path else DEFAULT_DB_PATH
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.connection = sqlite3.connect(str(self.db_path))
+        self.connection.row_factory = sqlite3.Row
+        self.connection.execute("PRAGMA foreign_keys = ON")
+        self.connection.execute("PRAGMA journal_mode = WAL")
+        run_migrations(self.connection)
 
-    defaults = {
-        "font_size": "22",
-        "night_mode": "0",
-        "local_notifications": "1",
-        "selected_riwayah": "hafs",
-        "selected_reader": "",
-    }
-    for key, value in defaults.items():
-        connection.execute(
-            "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",
+    def execute(self, query: str, params=()):
+        cursor = self.connection.execute(query, params)
+        self.connection.commit()
+        return cursor
+
+    def fetch_all(self, query: str, params=()):
+        return self.connection.execute(query, params).fetchall()
+
+    def fetch_one(self, query: str, params=()):
+        return self.connection.execute(query, params).fetchone()
+
+    def close(self):
+        self.connection.close()
+
+    def set_setting(self, key: str, value: str):
+        self.execute(
+            "INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
             (key, value),
         )
+        return value
 
-    if connection.execute("SELECT COUNT(*) FROM profile").fetchone()[0] == 0:
-        connection.execute(
-            "INSERT INTO profile(display_name, favorite_riwayah, favorite_reader, memorization_goal, review_goal) VALUES (?, ?, ?, ?, ?)",
-            ("المستخدم", "hafs", "", 30, 10),
+    def get_setting(self, key: str, default: str = "") -> str:
+        row = self.fetch_one("SELECT value FROM settings WHERE key = ?", (key,))
+        return row["value"] if row else default
+
+    def update_profile(self, **kwargs):
+        current = self.get_profile()
+        data = {
+            "display_name": kwargs.get("display_name", current.get("display_name", "المستخدم")),
+            "favorite_riwayah": kwargs.get("favorite_riwayah", current.get("favorite_riwayah", "hafs")),
+            "favorite_reader": kwargs.get("favorite_reader", current.get("favorite_reader", "")),
+            "memorization_goal": kwargs.get("memorization_goal", current.get("memorization_goal", 30)),
+            "review_goal": kwargs.get("review_goal", current.get("review_goal", 10)),
+        }
+        self.execute(
+            """
+            UPDATE profile
+            SET display_name = ?, favorite_riwayah = ?, favorite_reader = ?, memorization_goal = ?, review_goal = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = 1
+            """,
+            (
+                data["display_name"],
+                data["favorite_riwayah"],
+                data["favorite_reader"],
+                data["memorization_goal"],
+                data["review_goal"],
+            ),
         )
+        return data
 
-    connection.commit()
+    def get_profile(self) -> dict:
+        row = self.fetch_one("SELECT * FROM profile WHERE id = 1")
+        if not row:
+            return {
+                "display_name": "المستخدم",
+                "favorite_riwayah": "hafs",
+                "favorite_reader": "",
+                "memorization_goal": 30,
+                "review_goal": 10,
+            }
+        return {
+            "display_name": row["display_name"],
+            "favorite_riwayah": row["favorite_riwayah"],
+            "favorite_reader": row["favorite_reader"],
+            "memorization_goal": row["memorization_goal"],
+            "review_goal": row["review_goal"],
+        }
+
+    def update_surah_status(self, surah_number: int, status: str):
+        self.execute(
+            """
+            INSERT INTO surah_progress(surah_number, status, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(surah_number)
+            DO UPDATE SET status = excluded.status, updated_at = CURRENT_TIMESTAMP
+            """,
+            (surah_number, status),
+        )
+        return status
+
+    def get_surah_statuses(self) -> dict:
+        rows = self.fetch_all("SELECT surah_number, status FROM surah_progress")
+        return {row["surah_number"]: row["status"] for row in rows}
+
+    def get_statistics_summary(self) -> dict:
+        total_memorized = self.fetch_one("SELECT COUNT(*) FROM surah_progress WHERE status = 'memorized'")[0]
+        total_review = self.fetch_one("SELECT COUNT(*) FROM surah_progress WHERE status = 'review'")[0]
+        total_unmemorized = self.fetch_one("SELECT COUNT(*) FROM surah_progress WHERE status = 'unmemorized'")[0]
+        return {
+            "memorized": total_memorized,
+            "review": total_review,
+            "unmemorized": total_unmemorized,
+        }
+
+
+def get_db() -> Database:
+    return Database()

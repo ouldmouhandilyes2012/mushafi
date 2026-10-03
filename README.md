@@ -1,22 +1,30 @@
 # Mushafi
 
-Offline-first Arabic Quran memorization and revision app built in Python with Kivy.
+Mushafi is an offline-first Arabic Quran memorization and revision application built with Python and Kivy.
 
-## Project layout
+## Current status
 
-- `main.py` – application entry point
-- `database/` – SQLite connection and migrations
-- `models/` – data models
-- `screens/` – app screens
-- `services/` – Quran, audio, review, and offline utilities
-- `widgets/` – reusable widgets
-- `assets/` – local Quran, tafsir, audio, and font import folders
+The project is structured in a modular way and includes:
 
-## Notes
+- SQLite database layer
+- Offline-first data import schema for Quran, tafsir, and local audio
+- Home screen and core screen structure
+- Arabic RTL UI layout
+- Heart screen for memorization status
+- Profile and settings screens
+- Review and statistics placeholders backed by local database
 
-This repository intentionally does not bundle fake Quran text, invented tafsir, or fake audio. The app is structured to support local verified data imports from `assets/quran/*`, `assets/tafsir/*`, and `assets/audio/*`.
+## Important note
 
-## Run locally
+This repository intentionally does not include fake Quran text or invented tafsir data. The app is designed to work with verified local import files stored under:
+
+- `assets/quran/hafs/`
+- `assets/quran/warsh/`
+- `assets/quran/qalun/`
+- `assets/tafsir/`
+- `assets/audio/`
+
+## Local run
 
 ```bash
 python3 -m venv .venv
@@ -25,10 +33,10 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Build Android with Buildozer
+## Android build
 
 ```bash
 buildozer android debug
 ```
 
-If the build environment does not have Android SDK/NDK, the script is prepared but the actual APK build must be run on a machine that has the required Android toolchain.
+Note: actual APK generation requires a valid Android SDK, NDK, and Buildozer environment on the machine used for the build.

@@ -1,23 +1,39 @@
 from __future__ import annotations
 
-from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-from kivy.uix.label import Label
-
-from screens.base import BaseScreen
-from widgets.heart_grid import HeartGridWidget
+from kivy.uix.gridlayout import GridLayout
 
 
-class HeartScreen(BaseScreen):
-    def __init__(self, name: str, app=None, **kwargs):
-        super().__init__(name=name, app=app, **kwargs)
-        self.title_label.text = "قلب القرآن"
+class HeartCell(Button):
+    def __init__(self, surah_number: int, status: str = "unmemorized", **kwargs):
+        super().__init__(**kwargs)
+        self.surah_number = surah_number
+        self.status = status
+        self.text = str(surah_number)
+        self.font_size = 18
+        self.background_color = self._status_color(status)
+        self.color = (0.2, 0.2, 0.2, 1)
 
-        self.layout = BoxLayout(orientation="vertical", spacing=12, padding=12)
-        self.legend = BoxLayout(size_hint_y=None, height=60, spacing=8)
-        self.legend.add_widget(Button(text="محفوظ", background_color=(0.35, 0.75, 0.38, 1), color=(1, 1, 1, 1)))
-        self.legend.add_widget(Button(text="يحتاج مراجعة", background_color=(0.95, 0.7, 0.25, 1), color=(0.2, 0.2, 0.2, 1)))
-        self.legend.add_widget(Button(text="غير محفوظ", background_color=(0.85, 0.35, 0.35, 1), color=(1, 1, 1, 1)))
-        self.layout.add_widget(self.legend)
-        self.layout.add_widget(HeartGridWidget())
-        self.add_widget(self.layout)
+    def _status_color(self, status: str):
+        if status == "memorized":
+            return (0.35, 0.75, 0.38, 1)
+        if status == "review":
+            return (0.95, 0.7, 0.25, 1)
+        return (0.85, 0.35, 0.35, 1)
+
+
+class HeartGridWidget(GridLayout):
+    def __init__(self, statuses=None, **kwargs):
+        super().__init__(**kwargs)
+        self.cols = 6
+        self.spacing = 8
+        self.padding = 10
+        self.size_hint_y = None
+        self.bind(minimum_height=self.setter("height"))
+        statuses = statuses or {}
+        self.cells = []
+        for surah in range(1, 115):
+            status = statuses.get(surah, "unmemorized")
+            cell = HeartCell(surah, status)
+            self.cells.append(cell)
+            self.add_widget(cell)
