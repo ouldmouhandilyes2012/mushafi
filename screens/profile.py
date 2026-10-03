@@ -1,31 +1,73 @@
 from __future__ import annotations
 
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
 from kivy.uix.label import Label
-from kivy.uix.switch import Switch
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.textinput import TextInput
 
 from screens.base import BaseScreen
 
 
-class SettingsScreen(BaseScreen):
+class ProfileScreen(BaseScreen):
     def __init__(self, name: str, app=None, **kwargs):
         super().__init__(name=name, app=app, **kwargs)
-        self.title_label.text = "الإعدادات"
+        self.title_label.text = "الملف الشخصي"
+        self.app = app
 
         self.container = BoxLayout(orientation="vertical", spacing=12, padding=12)
 
         profile = self.app.db.get_profile() if self.app and hasattr(self.app, "db") else {}
-        selected_riwayah = self.app.db.get_setting("selected_riwayah", "hafs") if self.app and hasattr(self.app, "db") else "hafs"
-        night_mode = self.app.db.get_setting("night_mode", "0") if self.app and hasattr(self.app, "db") else "0"
-        notifications = self.app.db.get_setting("local_notifications", "1") if self.app and hasattr(self.app, "db") else "1"
 
-        self.container.add_widget(Label(text=f"اختيار الرواية: {selected_riwayah}", halign="right", font_size=18))
-        self.container.add_widget(Label(text=f"القارئ المفضل: {profile.get('favorite_reader', 'غير محدد')}", halign="right", font_size=18))
-        self.container.add_widget(Label(text=f"حجم الخط: {self.app.db.get_setting('font_size', '22') if self.app and hasattr(self.app, 'db') else '22'}", halign="right", font_size=18))
-        self.container.add_widget(Label(text="الوضع الليلي", halign="right", font_size=18))
-        self.container.add_widget(Switch(active=(night_mode == "1")))
-        self.container.add_widget(Label(text=f"التنبيهات المحلية: {'مفعل' if notifications == '1' else 'متوقف'}", halign="right", font_size=18))
-        self.container.add_widget(Label(text="إدارة المحتوى المحمل", halign="right", font_size=18))
-        self.container.add_widget(Label(text="حذف التسجيلات الشخصية", halign="right", font_size=18))
-        self.container.add_widget(Label(text="حذف بيانات التطبيق", halign="right", font_size=18))
-        self.add_widget(self.container)
+        self.container.add_widget(Label(text="الاسم:", halign="right", font_size=16, size_hint_y=None, height=30))
+        self.name_input = TextInput(
+            text=profile.get("display_name", "المستخدم"),
+            multiline=False,
+            font_size=18,
+            size_hint_y=None,
+            height=40,
+        )
+        self.container.add_widget(self.name_input)
+
+        self.container.add_widget(Label(text="هدف الحفظ (عدد السور):", halign="right", font_size=16, size_hint_y=None, height=30))
+        self.goal_input = TextInput(
+            text=str(profile.get("memorization_goal", 30)),
+            multiline=False,
+            input_filter="int",
+            font_size=18,
+            size_hint_y=None,
+            height=40,
+        )
+        self.container.add_widget(self.goal_input)
+
+        self.container.add_widget(Label(text="هدف المراجعة (عدد الجلسات):", halign="right", font_size=16, size_hint_y=None, height=30))
+        self.review_goal_input = TextInput(
+            text=str(profile.get("review_goal", 10)),
+            multiline=False,
+            input_filter="int",
+            font_size=18,
+            size_hint_y=None,
+            height=40,
+        )
+        self.container.add_widget(self.review_goal_input)
+
+        self.save_btn = Button(text="حفظ", size_hint_y=None, height=50)
+        self.save_btn.bind(on_release=self._save_profile)
+        self.container.add_widget(self.save_btn)
+
+        scroll = ScrollView(do_scroll_x=False)
+        scroll.add_widget(self.container)
+        self.add_widget(scroll)
+
+    def _save_profile(self, instance):
+        if not self.app or not hasattr(self.app, "db"):
+            return
+        try:
+            self.app.db.update_profile(
+                display_name=self.name_input.text,
+                memorization_goal=int(self.goal_input.text) if self.goal_input.text else 30,
+                review_goal=int(self.review_goal_input.text) if self.review_goal_input.text else 10,
+            )
+            self.title_label.text = "تم الحفظ بنجاح"
+        except Exception as e:
+            self.title_label.text = f"خطأ: {str(e)}"
